@@ -313,6 +313,7 @@ void sys_init(void)
 	fatal("Couldn't create IP socket: %m(%d)", errno);
 
 #ifdef INET6
+aa
     sock6_fd = socket(AF_INET6, SOCK_DGRAM, 0);
     if (sock6_fd < 0)
 	sock6_fd = -errno;	/* save errno for later */
@@ -1074,7 +1075,7 @@ void wait_input(struct timeval *timo)
     exc = in_fds;
     n = select(max_in_fd + 1, &ready, NULL, &exc, timo);
     if (n < 0 && errno != EINTR)
-	fatal("select: %m");
+		fatal("select: %m");
 }
 
 /*

@@ -699,7 +699,7 @@ int connect_tty()
 
 		if (connector && connector[0]) {
 			if (device_script(connector, ttyfd, ttyfd, 0) < 0) {
-				error("Connect script failed");
+				error("Connect script failed connector=%s.",connector);
 				status = EXIT_CONNECT_FAILED;
 				goto errretf;
 			}

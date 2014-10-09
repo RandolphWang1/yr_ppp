@@ -377,7 +377,7 @@ main(argc, argv)
 	(*the_channel->process_extra_options)();
 
     if (debug)
-	setlogmask(LOG_UPTO(LOG_DEBUG));
+		setlogmask(LOG_UPTO(LOG_DEBUG));
 
     /*
      * Check that we are running as root.
@@ -411,9 +411,9 @@ main(argc, argv)
 
 
     if (dump_options || dryrun) {
-	init_pr_log(NULL, LOG_INFO);
-	print_options(pr_log, NULL);
-	end_pr_log();
+		init_pr_log(NULL, LOG_INFO);
+		print_options(pr_log, NULL);
+		end_pr_log();
     }
 
     if (dryrun)
@@ -493,90 +493,90 @@ main(argc, argv)
     }
 
     do_callback = 0;
-    for (;;) {
+	
+	for (;;) {
+		bundle_eof = 0;
+		bundle_terminating = 0;
+		listen_time = 0;
+		need_holdoff = 1;
+		devfd = -1;
+		status = EXIT_OK;
+		++unsuccess;
+		doing_callback = do_callback;
+		do_callback = 0;
 
-	bundle_eof = 0;
-	bundle_terminating = 0;
-	listen_time = 0;
-	need_holdoff = 1;
-	devfd = -1;
-	status = EXIT_OK;
-	++unsuccess;
-	doing_callback = do_callback;
-	do_callback = 0;
+		if (demand && !doing_callback) {
+		    /*
+		     * Don't do anything until we see some activity.
+		     */
+		    new_phase(PHASE_DORMANT);
+		    demand_unblock();
+		    add_fd(fd_loop);
+		    for (;;) {
+				handle_events();
+				if (asked_to_quit)
+				    break;
+				if (get_loop_output())
+				    break;
+		    }
+		    remove_fd(fd_loop);
+		    if (asked_to_quit)
+			break;
 
-	if (demand && !doing_callback) {
-	    /*
-	     * Don't do anything until we see some activity.
-	     */
-	    new_phase(PHASE_DORMANT);
-	    demand_unblock();
-	    add_fd(fd_loop);
-	    for (;;) {
-		handle_events();
-		if (asked_to_quit)
-		    break;
-		if (get_loop_output())
-		    break;
-	    }
-	    remove_fd(fd_loop);
-	    if (asked_to_quit)
-		break;
-
-	    /*
-	     * Now we want to bring up the link.
-	     */
-	    demand_block();
-	    info("Starting link");
-	}
-
-	gettimeofday(&start_time, NULL);
-	script_unsetenv("CONNECT_TIME");
-	script_unsetenv("BYTES_SENT");
-	script_unsetenv("BYTES_RCVD");
-
-	lcp_open(0);		/* Start protocol */
-	start_link(0);
-	while (phase != PHASE_DEAD) {
-	    handle_events();
-	    get_input();
-	    if (kill_link)
-		lcp_close(0, "User request");
-	    if (asked_to_quit) {
-		bundle_terminating = 1;
-		if (phase == PHASE_MASTER)
-		    mp_bundle_terminated();
-	    }
-	    if (open_ccp_flag) {
-		if (phase == PHASE_NETWORK || phase == PHASE_RUNNING) {
-		    ccp_fsm[0].flags = OPT_RESTART; /* clears OPT_SILENT */
-		    (*ccp_protent.open)(0);
+		    /*
+		     * Now we want to bring up the link.
+		     */
+		    demand_block();
+		    info("Starting link");
 		}
-	    }
-	}
-	/* restore FSMs to original state */
-	lcp_close(0, "");
 
-	if (!persist || asked_to_quit || (maxfail > 0 && unsuccess >= maxfail))
-	    break;
+		gettimeofday(&start_time, NULL);
+		script_unsetenv("CONNECT_TIME");
+		script_unsetenv("BYTES_SENT");
+		script_unsetenv("BYTES_RCVD");
 
-	if (demand)
-	    demand_discard();
-	t = need_holdoff? holdoff: 0;
-	if (holdoff_hook)
-	    t = (*holdoff_hook)();
-	if (t > 0) {
-	    new_phase(PHASE_HOLDOFF);
-	    TIMEOUT(holdoff_end, NULL, t);
-	    do {
-		handle_events();
-		if (kill_link)
-		    new_phase(PHASE_DORMANT); /* allow signal to end holdoff */
-	    } while (phase == PHASE_HOLDOFF);
-	    if (!persist)
-		break;
+		lcp_open(0);		/* Start protocol */
+		start_link(0);
+		while (phase != PHASE_DEAD) {
+		    handle_events();
+		    get_input();
+		    if (kill_link)
+			lcp_close(0, "User request");
+		    if (asked_to_quit) {
+			bundle_terminating = 1;
+			if (phase == PHASE_MASTER)
+			    mp_bundle_terminated();
+		    }
+		    if (open_ccp_flag) {
+			if (phase == PHASE_NETWORK || phase == PHASE_RUNNING) {
+			    ccp_fsm[0].flags = OPT_RESTART; /* clears OPT_SILENT */
+			    (*ccp_protent.open)(0);
+			}
+		    }
+		}
+		/* restore FSMs to original state */
+		lcp_close(0, "");
+
+		if (!persist || asked_to_quit || (maxfail > 0 && unsuccess >= maxfail))
+		    break;
+
+		if (demand)
+		    demand_discard();
+		t = need_holdoff? holdoff: 0;
+		if (holdoff_hook)
+		    t = (*holdoff_hook)();
+		if (t > 0) {
+		    new_phase(PHASE_HOLDOFF);
+		    TIMEOUT(holdoff_end, NULL, t);
+		    do {
+			handle_events();
+			if (kill_link)
+			    new_phase(PHASE_DORMANT); /* allow signal to end holdoff */
+		    } while (phase == PHASE_HOLDOFF);
+		    if (!persist)
+			break;
+		}
 	}
-    }
 
     /* Wait for scripts to finish */
     reap_kids();
@@ -610,39 +610,39 @@ handle_events()
 
     kill_link = open_ccp_flag = 0;
     if (sigsetjmp(sigjmp, 1) == 0) {
-	sigprocmask(SIG_BLOCK, &signals_handled, NULL);
-	if (got_sighup || got_sigterm || got_sigusr2 || got_sigchld) {
-	    sigprocmask(SIG_UNBLOCK, &signals_handled, NULL);
-	} else {
-	    waiting = 1;
-	    sigprocmask(SIG_UNBLOCK, &signals_handled, NULL);
-	    wait_input(timeleft(&timo));
-	}
+		sigprocmask(SIG_BLOCK, &signals_handled, NULL);
+		if (got_sighup || got_sigterm || got_sigusr2 || got_sigchld) {
+		    sigprocmask(SIG_UNBLOCK, &signals_handled, NULL);
+		} else {
+		    waiting = 1;
+		    sigprocmask(SIG_UNBLOCK, &signals_handled, NULL);
+		    wait_input(timeleft(&timo));
+		}
     }
     waiting = 0;
     calltimeout();
     if (got_sighup) {
-	info("Hangup (SIGHUP)");
-	kill_link = 1;
-	got_sighup = 0;
-	if (status != EXIT_HANGUP)
-	    status = EXIT_USER_REQUEST;
+		info("Hangup (SIGHUP)");
+		kill_link = 1;
+		got_sighup = 0;
+		if (status != EXIT_HANGUP)
+		    status = EXIT_USER_REQUEST;
     }
     if (got_sigterm) {
-	info("Terminating on signal %d", got_sigterm);
-	kill_link = 1;
-	asked_to_quit = 1;
-	persist = 0;
-	status = EXIT_USER_REQUEST;
-	got_sigterm = 0;
+		info("Terminating on signal %d", got_sigterm);
+		kill_link = 1;
+		asked_to_quit = 1;
+		persist = 0;
+		status = EXIT_USER_REQUEST;
+		got_sigterm = 0;
     }
     if (got_sigchld) {
-	got_sigchld = 0;
-	reap_kids();	/* Don't leave dead kids lying around */
+		got_sigchld = 0;
+		reap_kids();	/* Don't leave dead kids lying around */
     }
     if (got_sigusr2) {
-	open_ccp_flag = 1;
-	got_sigusr2 = 0;
+		open_ccp_flag = 1;
+		got_sigusr2 = 0;
     }
 }
 
@@ -1171,7 +1171,7 @@ die(status)
 	print_link_stats();
     cleanup();
     notify(exitnotify, status);
-    syslog(LOG_INFO, "Exit.");
+    syslog(LOG_INFO, "Exit. status=%d.",status);
     exit(status);
 }
 

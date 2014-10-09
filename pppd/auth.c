@@ -561,7 +561,7 @@ void start_link(unit)
     devfd = the_channel->connect();
     msg = "Connect script failed";
     if (devfd < 0)
-	goto fail;
+		goto fail;
 
     /* set up the serial device as a ppp interface */
     /*

@@ -394,8 +394,10 @@ main(argc, argv)
 	arg = ARG(argc, argv);
 	if (arg != NULL)
 	    usage();
-	else
-	    do_file (chat_file);
+	else{
+			msgf("chat_file = %s", chat_file);
+		    do_file (chat_file);
+	}
     } else {
 	while ((arg = ARG(argc, argv)) != NULL) {
 	    chat_expect(arg);
@@ -405,6 +407,7 @@ main(argc, argv)
 	}
     }
 
+	msgf("chat finished.");
     terminate(0);
     return 0;
 }
@@ -1003,7 +1006,7 @@ char *s;
     if (fail_reason)
 	msgf("Failed (%s)", fail_reason);
     else
-	msgf("Failed");
+	msgf("Failed in chat_expect for %s",s);
     terminate(exit_code);
 }
 

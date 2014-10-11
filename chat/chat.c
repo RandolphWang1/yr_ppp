@@ -180,6 +180,13 @@ char *chat_file   = (char *) 0;
 char *phone_num   = (char *) 0;
 char *phone_num2  = (char *) 0;
 int timeout       = DEFAULT_CHAT_TIMEOUT;
+int detect_IMSI_flg = 0;
+char g_imsi[16];
+//int read_imsi_flg = 0;
+
+#define IMSI_TAG ("IMSI:")
+#define IMSI_TAG_LEN 5
+#define YR_CONFIG_FILE_PATH ("/usr/local/config.txt")
 
 int have_tty_parameters = 0;
 
@@ -242,6 +249,148 @@ char *expect_strtok __P((char *, char *));
 int vfmtmsg __P((char *, int, const char *, va_list));	/* vsprintf++ */
 
 int main __P((int, char *[]));
+
+int save_imsi(char *str_imsi, char *file_path)
+{
+    FILE *cfp;
+    char buf [STR_LEN];
+    int len = 0;
+    char *p = NULL;
+    int ret = 1;
+    int g_imsi_detect = 0;
+    
+    msgf("save imsi = %s ",str_imsi);
+    
+    cfp = fopen (file_path, "r");
+    if (cfp){
+        p = buf;
+        len = 0;
+        while (fgets(p, STR_LEN-len, cfp) != NULL) {
+            msgf("bbb = %s",p);
+            
+            if(strncmp(p,IMSI_TAG,IMSI_TAG_LEN) == 0){
+                if(strncmp(p+IMSI_TAG_LEN,str_imsi,15) == 0){
+                    //the IMSI is already in config file. do nothing.
+                    msgf("IMSI not need to update: %s",p);
+                    fclose(cfp);
+                    return 1;
+                }
+                else{
+                    //the IMSI is different, need to update
+                    g_imsi_detect = 1;
+                    //copy IMSI
+                    //memcpy(p,IMSI_TAG,IMSI_TAG_LEN);
+                    str_imsi[15] = '\n';
+                    memcpy(p+IMSI_TAG_LEN,str_imsi,16);
+                    //*(p+IMSI_TAG_LEN+16) = '\n';
+                    //len = len + IMSI_TAG_LEN + 16 + 1;
+                }
+            }
+            //else
+            {
+                len = len + strlen(p) + 1;
+                buf[len] = '\n';
+            }
+            
+            if(len > STR_LEN){
+                fatal(1, "memory leak");
+                ret = 0;
+                break;
+            }
+
+            p = &buf[len];
+        }
+        fclose(cfp);
+    }
+    
+    if(g_imsi_detect == 0){
+        //empty file. 
+        p = &buf[len];
+        memcpy(p,IMSI_TAG,IMSI_TAG_LEN);
+        memcpy(p+IMSI_TAG_LEN,str_imsi,16);
+        *(p+IMSI_TAG_LEN+16) = '\n';
+        len = len + IMSI_TAG_LEN + 16 + 1;     
+    }
+
+    cfp = fopen (file_path, "w");
+    if(ret){
+        msgf("len =%d buf=%s",len,buf);
+        ret = fwrite(buf,1,len,cfp);
+
+        msgf("write %d chars while %d needed.",ret,len);
+        
+        if(ret < len){
+            ;
+        }
+    }
+    fclose(cfp);
+    return ret;
+}
+
+int handle_IMSI(char *str)
+{
+    int ret = 0;
+    
+    if(strcmp(str,g_imsi) != 0){
+        memcpy(g_imsi,str,16);
+        
+        ret = save_imsi(g_imsi,YR_CONFIG_FILE_PATH);
+
+        if(ret == 0)
+            msgf("save g_imsi fail.\n");
+        }
+
+    return ret;
+}
+int detect_IMSI(char *str)
+{
+    /*
+        IMSI = MCC + MNC + MSIN 
+        15   =  3    + 2     + 10
+        The MCC for China = 460
+       */
+    int i=0;
+    char *p = NULL;
+    char imsi[16];
+
+    
+    p = str;
+    while((*p == '\r') || (*p == '\n') || (*p == ' '))
+        p++;
+
+    //FIXME
+    //only support China device now.!!!!
+    if(strncmp(p,"460",3) != 0)
+        return 0;
+    
+    p += 3;
+    for(i=3;i<15;i++)
+        {
+        if((*p >= '0') && (*p <= '9'))
+            {
+            p++;
+            continue;
+            }
+        else
+            break;
+        }
+
+    if(i < 15)
+        {
+        msgf("2 imsi = %s,i=%d",p,i);
+        return 0;
+        }
+    /* The 15 consequent number, we think it's IMSI. 
+        since detect_IMSI() will only
+        be called after AT+CIMI is send.
+       */
+
+    //copy string out.
+    memcpy(imsi,p-15,15);
+    imsi[15] = '\0';
+    msgf("imsi = %s detected",imsi);
+    return handle_IMSI(imsi);
+}
 
 void *dup_mem(b, c)
 void *b;
@@ -394,8 +543,10 @@ main(argc, argv)
 	arg = ARG(argc, argv);
 	if (arg != NULL)
 	    usage();
-	else
-	    do_file (chat_file);
+	else{
+			msgf("chat_file = %s", chat_file);
+		    do_file (chat_file);
+	}
     } else {
 	while ((arg = ARG(argc, argv)) != NULL) {
 	    chat_expect(arg);
@@ -405,6 +556,7 @@ main(argc, argv)
 	}
     }
 
+	msgf("chat finished.");
     terminate(0);
     return 0;
 }
@@ -432,10 +584,12 @@ char *chat_file;
 	sp = strchr (buf, '\n');
 	if (sp)
 	    *sp = '\0';
-
+    
 	linect++;
 	sp = buf;
 
+    msgf("line %d = %s",linect,sp);
+    
         /* lines starting with '#' are comments. If a real '#'
            is to be expected, it should be quoted .... */
         if ( *sp == '#' )
@@ -470,7 +624,13 @@ char *chat_file;
 		*sp++ = '\0';
 
 	    if (sendflg)
-		chat_send (arg);
+        {   
+            if(strcmp(arg,"AT+CIMI")== 0)
+                {
+                detect_IMSI_flg = 1;
+                }
+		    chat_send (arg);
+        }
 	    else
 		chat_expect (arg);
 	    sendflg = !sendflg;
@@ -1199,7 +1359,7 @@ register char *s;
 	    while (n < STR_LEN - 1) {
 		int nr = fread(&file_data[n], 1, STR_LEN - 1 - n, f);
 		if (nr < 0)
-		    fatal(1, "%s -- read error", fn);
+		    fatal(1, "%s -- read error: %m", fn);
 		if (nr == 0)
 		    break;
 		n += nr;
@@ -1409,6 +1569,7 @@ register char *string;
     alarm(timeout);
     alarmed = 0;
 
+    memset(temp,0,STR_LEN);
     while ( ! alarmed && (c = get_char()) >= 0) {
 	int n, abort_len, report_len;
 
@@ -1474,11 +1635,21 @@ register char *string;
 		msgf(" -- got it\n");
 	    }
 
+        if(detect_IMSI_flg)
+            {
+            //normally, AT+CIME will return ok and return .....
+            int ret = detect_IMSI(temp);
+
+            //msgf("xxxx rcv str=%s",temp);
+            if(ret == 0)
+                msgf("error!!! AT+CIME not return right IMSI.");
+            detect_IMSI_flg = 0;
+            }
 	    alarm(0);
 	    alarmed = 0;
 	    return (1);
 	}
-
+    
 	for (n = 0; n < n_aborts; ++n) {
 	    if (s - temp >= (abort_len = strlen(abort_string[n])) &&
 		strncmp(s - abort_len, abort_string[n], abort_len) == 0) {
@@ -1512,6 +1683,7 @@ register char *string;
 	    msgf("warning: alarm synchronization problem");
     }
 
+    
     alarm(0);
     
     if (verbose && printed) {

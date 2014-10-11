@@ -266,8 +266,10 @@ int save_imsi(char *str_imsi, char *file_path)
         p = buf;
         len = 0;
         while (fgets(p, STR_LEN-len, cfp) != NULL) {
-            msgf("bbb = %s",p);
             
+#ifdef YN_DEBUG             
+            msgf("bbb = %s len=%d",p,strlen(p));
+#endif            
             if(strncmp(p,IMSI_TAG,IMSI_TAG_LEN) == 0){
                 if(strncmp(p+IMSI_TAG_LEN,str_imsi,15) == 0){
                     //the IMSI is already in config file. do nothing.
@@ -288,7 +290,7 @@ int save_imsi(char *str_imsi, char *file_path)
             }
             //else
             {
-                len = len + strlen(p) + 1;
+                len = len + strlen(p);
                 buf[len] = '\n';
             }
             
@@ -314,7 +316,11 @@ int save_imsi(char *str_imsi, char *file_path)
 
     cfp = fopen (file_path, "w");
     if(ret){
-        msgf("len =%d buf=%s",len,buf);
+#ifdef YN_DEBUG        
+        int k=0;
+        for(k=0;k<len;k++)
+            msgf("buf 0x%x",buf[k]);
+#endif        
         ret = fwrite(buf,1,len,cfp);
 
         msgf("write %d chars while %d needed.",ret,len);

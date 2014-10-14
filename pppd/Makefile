@@ -208,6 +208,8 @@ install: pppd
 
 pppd: $(PPPDOBJS)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o pppd $(PPPDOBJS) $(LIBS)
+	cp pppd pppd.out
+	arm-linux-strip -s -I pppd
 
 srp-entry:	srp-entry.c
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ srp-entry.c $(LIBS)

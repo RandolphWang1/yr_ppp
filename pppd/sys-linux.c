@@ -106,7 +106,7 @@
 #include <asm/types.h>		/* glibc 2 conflicts with linux/types.h */
 #include <net/if.h>
 #include <net/if_arp.h>
-#include <net/route_341.h>
+#include "route_341.h"
 #include <netinet/if_ether.h>
 #else
 #include <linux/types.h>

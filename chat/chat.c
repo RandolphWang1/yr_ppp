@@ -1169,7 +1169,7 @@ char *s;
     if (fail_reason)
 	msgf("Failed (%s)", fail_reason);
     else
-	msgf("Failed");
+	msgf("Failed in chat_expect for %s",s);
     terminate(exit_code);
 }
 
